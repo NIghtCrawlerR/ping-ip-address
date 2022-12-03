@@ -14,7 +14,7 @@ let db
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true })
 
-const setIPAddress = async (id) => {
+const addIPAddress = async (id) => {
   // request an IP address
   const hostAddressMessage = await bot.sendMessage(id, 'Provide IP address', {
     reply_markup: {
@@ -37,18 +37,29 @@ const setIPAddress = async (id) => {
     bot.onReplyToMessage(id, hostNameMessage.message_id, resolve)
   })
 
+  bot.sendMessage(id, 'All done!')
+
   const userId = hostNameReply.from.id
   db.collection('users').findOne({ userId }, (err, user) => {
     if (err) return console.log(err)
 
-    // add a new user to db collection if it doesn't exist yet
     if (!user) {
       db.collection('users').insertOne({
         userId,
         ipList: [{ address: hostAddressReply.text, name: hostNameReply.text }],
       })
     } else {
-      bot.sendMessage(id, 'User already exists')
+      db.collection('users').findOneAndUpdate(
+        { userId },
+        {
+          $push: {
+            ipList: {
+              address: hostAddressReply.text,
+              name: hostNameReply.text,
+            },
+          },
+        },
+      )
     }
   })
 }
@@ -70,8 +81,8 @@ bot.onText(/\/start/, (msg) => {
   const id = msg.chat.id
 
   const keyboard = [
-    [{ text: 'Set IP address manually', callback_data: 'setIPAddress' }],
-    [{ text: 'Detect current IP address', callback_data: 'detectIPAddress' }],
+    [{ text: 'Add IP address manually', callback_data: 'addIPAddress' }],
+    // [{ text: 'Detect current IP address', callback_data: 'detectIPAddress' }],
   ]
 
   bot.sendMessage(id, 'Hi! Now set your local IP address', {
@@ -100,6 +111,10 @@ bot.onText(/\/getiplist/, async (msg) => {
   })
 })
 
+bot.onText(/\/addip/, async (msg) => {
+  addIPAddress(msg.chat.id)
+})
+
 bot.on('callback_query', (msg) => {
   const {
     data,
@@ -112,8 +127,8 @@ bot.on('callback_query', (msg) => {
     return pingIpAddress(id, data)
   }
 
-  if ('setIPAddress') {
-    return setIPAddress(id)
+  if ('addIPAddress') {
+    return addIPAddress(id)
   }
 })
 
@@ -123,11 +138,12 @@ app.get('/ping-ip-address', (req, res) => {
   ping.sys.probe(ipAddress, (isAlive) => {
     const status = isAlive ? 'alive' : 'dead'
     const msg = `host ${ipAddress} is ${status}!`
-    console.log(msg)
+    
+    return res.send(msg)
   })
-
-  return res.send('Ping!')
 })
+
+bot.on('polling_error', (err) => console.log(err))
 
 mongo.connect((err, client) => {
   if (err) console.log(err)
