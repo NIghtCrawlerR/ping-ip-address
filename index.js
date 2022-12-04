@@ -71,7 +71,8 @@ const pingIpAddress = (id, data) => {
 
   ping.sys.probe(address, (isAlive) => {
     const status = isAlive ? 'alive' : 'dead'
-    const msg = `host ${address} is ${status}!`
+    const icon = isAlive ? '✅' : '🟥'
+    const msg = `${icon} host ${address} is ${status}!`
 
     bot.sendMessage(id, msg)
   })
