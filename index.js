@@ -1,8 +1,8 @@
 const express = require('express')
 const ping = require('ping')
 const TelegramBot = require('node-telegram-bot-api')
-const mongo = require('./database')
 const ip = require('ip')
+const mongo = require('./database')
 
 require('dotenv').config()
 
@@ -62,6 +62,8 @@ const addIPAddress = async (id) => {
         },
       )
     }
+
+    return undefined
   })
 }
 
@@ -96,7 +98,7 @@ const pingIpAddress = (id, data) => {
 }
 
 bot.onText(/\/start/, (msg) => {
-  const id = msg.chat.id
+  const { id } = msg.chat
 
   const keyboard = [
     [{ text: 'Add IP address manually', callback_data: 'addIPAddress' }],
@@ -109,20 +111,18 @@ bot.onText(/\/start/, (msg) => {
 })
 
 bot.onText(/\/getiplist/, async (msg) => {
-  const id = msg.chat.id
+  const { id } = msg.chat
   const userId = msg.from.id
 
   const user = await db.collection('users').findOne({ userId })
   const { ipList } = user
 
-  const keyboard = ipList.map((ip) => {
-    return [
-      {
-        text: `${ip.name} (${ip.address})`,
-        callback_data: `pingIpAddress@${ip.address}@${ip.name}`,
-      },
-    ]
-  })
+  const keyboard = ipList.map(({ name, address }) => [
+    {
+      text: `${name} (${address})`,
+      callback_data: `pingIpAddress@${address}@${name}`,
+    },
+  ])
 
   bot.sendMessage(id, 'Select which ip u want to ping', {
     reply_markup: { inline_keyboard: keyboard },
@@ -152,6 +152,8 @@ bot.on('callback_query', (msg) => {
   if (data === 'detectIPAddress') {
     return detectIPAddress(id)
   }
+
+  return undefined
 })
 
 app.get('/ping-ip-address', (req, res) => {
@@ -167,7 +169,7 @@ app.get('/ping-ip-address', (req, res) => {
 
 bot.on('polling_error', (err) => console.log(err))
 
-mongo.connect((err, client) => {
+mongo.connect((err) => {
   if (err) console.log(err)
 
   db = mongo.getDb()

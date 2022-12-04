@@ -12,5 +12,6 @@ module.exports = {
   },
   rules: {
     semi: ['error', 'never'],
+    'no-promise-executor-return': ['error', 'never'],
   },
 }
