@@ -2,6 +2,7 @@ const express = require('express')
 const ping = require('ping')
 const TelegramBot = require('node-telegram-bot-api')
 const mongo = require('./database')
+const ip = require('ip')
 
 require('dotenv').config()
 
@@ -64,7 +65,23 @@ const addIPAddress = async (id) => {
   })
 }
 
-const detectIPAddress = () => {}
+const detectIPAddress = async (id) => {
+  const ipAddress = ip.address()
+
+  const hostNameMessage = await bot.sendMessage(
+    id,
+    `Provide name for ${ipAddress}`,
+    {
+      reply_markup: {
+        force_reply: true,
+      },
+    },
+  )
+  const hostNameReply = await new Promise((resolve) => {
+    bot.onReplyToMessage(id, hostNameMessage.message_id, resolve)
+  })
+  bot.sendMessage(id, `${ipAddress} ${hostNameReply.text}`)
+}
 
 const pingIpAddress = (id, data) => {
   const address = data.split('@')[1]
@@ -83,7 +100,7 @@ bot.onText(/\/start/, (msg) => {
 
   const keyboard = [
     [{ text: 'Add IP address manually', callback_data: 'addIPAddress' }],
-    // [{ text: 'Detect current IP address', callback_data: 'detectIPAddress' }],
+    [{ text: 'Detect current IP address', callback_data: 'detectIPAddress' }],
   ]
 
   bot.sendMessage(id, 'Hi! Now set your local IP address', {
@@ -128,8 +145,12 @@ bot.on('callback_query', (msg) => {
     return pingIpAddress(id, data)
   }
 
-  if ('addIPAddress') {
+  if (data === 'addIPAddress') {
     return addIPAddress(id)
+  }
+
+  if (data === 'detectIPAddress') {
+    return detectIPAddress(id)
   }
 })
 
@@ -139,7 +160,7 @@ app.get('/ping-ip-address', (req, res) => {
   ping.sys.probe(ipAddress, (isAlive) => {
     const status = isAlive ? 'alive' : 'dead'
     const msg = `host ${ipAddress} is ${status}!`
-    
+
     return res.send(msg)
   })
 })
