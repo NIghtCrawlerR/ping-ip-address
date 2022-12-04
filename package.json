@@ -10,7 +10,6 @@
   "scripts": {
     "start": "node index.js",
     "lint": "eslint",
-    "heroku-postbuild": "cd client && npm install && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
